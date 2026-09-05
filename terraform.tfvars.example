@@ -1,0 +1,28 @@
+﻿# ==============================================================================
+# terraform.tfvars.example
+#
+# This file is a TEMPLATE. It shows every variable this project accepts
+# and what format the values should be in.
+#
+# HOW TO USE:
+#   1. Copy this file and rename it to terraform.tfvars
+#   2. Fill in the values appropriate for your environment
+#   3. Never commit terraform.tfvars to version control (it is in .gitignore)
+#
+# terraform.tfvars is the standard way to pass variable values in Terraform.
+# When you run terraform plan or terraform apply, Terraform automatically
+# reads terraform.tfvars and uses the values defined inside it.
+# ==============================================================================
+
+# Networking
+vpc_cidr = "10.0.0.0/16"
+
+# Database configuration
+db_name              = "p5appdb"
+db_username          = "dbadmin"
+db_instance_class    = "db.t3.micro"
+db_engine_version    = "8.0"
+db_allocated_storage = 20
+
+# Set to true to enable Multi-AZ active/standby failover (recommended for production)
+multi_az = false

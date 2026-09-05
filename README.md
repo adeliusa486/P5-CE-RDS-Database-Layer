@@ -6,7 +6,7 @@ This project provisions a production-ready, private MySQL database on AWS using 
 
 The infrastructure follows the same patterns used in real-world production deployments: the database sits inside private subnets with no public IP, credentials are generated randomly and stored in AWS Secrets Manager so they never appear in code or version control, and the networking is designed to be extended to Multi-AZ failover by flipping a single variable.
 
-This is not a tutorial setup. The configuration choices made here reflect what a senior engineer would deliver to a client who needs a database that is secure, auditable, and ready to scale.
+This is not a tutorial setup. The configuration choices here reflect what a senior engineer would deliver to a client who needs a database that is secure, auditable, and ready to scale.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ The database lives entirely within private subnets and is never directly reachab
 
 ## Key Features
 
-* Private RDS MySQL 8.0 instance on db.t3.micro (AWS Free Tier eligible)
+* Private RDS MySQL 8.0 instance on db.t3.micro, AWS Free Tier eligible
 * Cryptographically random 16-character database password generated at deploy time
 * Password stored as a structured JSON secret in AWS Secrets Manager, never in code
 * Storage encrypted at rest using AES-256 via AWS-managed keys
@@ -24,74 +24,89 @@ The database lives entirely within private subnets and is never directly reachab
 * Security Group restricts MySQL access to port 3306 from within the VPC CIDR only
 * Automated daily backups with a 7-day retention window
 * Multi-AZ toggle controlled by a single variable for easy environment promotion
+* Local values centralise naming and tagging so changes happen in one place
 * All resources tagged consistently using provider-level default tags
 
 ## File Structure
 
-`
+```
 P5-CE-RDS-Database-Layer/
-|-- providers.tf          AWS and Random provider configuration with default tags
-|-- variables.tf          All configurable inputs with sensible defaults
-|-- vpc.tf                VPC, subnets, internet gateway, and route tables
-|-- security.tf           Security group restricting inbound access to port 3306
-|-- db_subnet_group.tf    DB Subnet Group spanning two private subnets across AZs
-|-- secrets.tf            Random password generation and Secrets Manager storage
-|-- rds.tf                RDS MySQL instance with backup, encryption, and tagging
-|-- outputs.tf            Prints the RDS endpoint, port, secret ARN, and DB name
-|-- assets/               Architecture diagram and deployment screenshots
-`
+|
++-- providers.tf                  AWS and Random provider config with default tags
++-- locals.tf                     Centralised naming prefix, environment, and common tags
++-- variables.tf                  All configurable inputs with sensible defaults
++-- vpc.tf                        VPC, public and private subnets, IGW, route tables
++-- security.tf                   Security group restricting inbound to port 3306 from VPC only
++-- db_subnet_group.tf            DB Subnet Group spanning two private subnets across AZs
++-- secrets.tf                    Random password generation and Secrets Manager storage
++-- rds.tf                        RDS MySQL instance with backup, encryption, and tagging
++-- outputs.tf                    Prints RDS endpoint, port, secret ARN, and DB name
++-- terraform.tfvars.example      Template showing all configurable variables
++-- .gitignore                    Excludes state files, provider cache, and tfvars
+|
++-- assets/
+    +-- architecture.jpg          Full infrastructure architecture diagram
+    +-- terraform-apply-output.png    Terraform apply terminal output
+    +-- rds-console-available.png     AWS Console confirming RDS status
+```
 
 ## Prerequisites
 
 * Terraform v1.5 or later installed and available on your PATH
-* AWS CLI v2 installed and configured with credentials that have sufficient IAM permissions
-* An AWS account with the RDS, VPC, Secrets Manager, and IAM services available in us-east-1
+* AWS CLI v2 installed and configured with sufficient IAM permissions
+* An AWS account with RDS, VPC, Secrets Manager, and IAM services available in us-east-1
 * Git installed locally
 
-To verify your setup before deploying:
+Verify your environment before deploying:
 
-`ash
+```bash
 terraform --version
 aws sts get-caller-identity
-`
+```
 
 ## Deployment
 
 Clone the repository and navigate into the project folder:
 
-`ash
+```bash
 git clone https://github.com/adeliusa486/P5-CE-RDS-Database-Layer.git
 cd P5-CE-RDS-Database-Layer
-`
+```
+
+Copy the example variables file and adjust values if needed:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
 
 Initialize Terraform to download the required providers:
 
-`ash
+```bash
 terraform init
-`
+```
 
 Review the execution plan before applying anything to your AWS account:
 
-`ash
+```bash
 terraform plan
-`
+```
 
-Deploy the infrastructure. This step will take approximately 6 to 10 minutes because RDS provisioning involves allocating storage, installing the database engine, and running first-boot configuration:
+Deploy the infrastructure. RDS provisioning takes approximately 6 to 10 minutes because AWS allocates storage, installs the database engine, and runs first-boot configuration automatically:
 
-`ash
+```bash
 terraform apply
-`
+```
 
-When the apply completes, Terraform will print the outputs directly to your terminal:
+When the apply completes, Terraform prints the connection details to your terminal:
 
-`
+```
 db_name      = "p5appdb"
 rds_endpoint = "p5-production-mysql.xxxxxxxx.us-east-1.rds.amazonaws.com:3306"
 rds_port     = 3306
 secret_arn   = "arn:aws:secretsmanager:us-east-1:xxxxxxxxxxxx:secret:p5/production/db-credentials"
-`
+```
 
-The RDS endpoint is what your application uses to connect. The secret ARN is what your application uses to retrieve the credentials from Secrets Manager at runtime.
+The RDS endpoint is what your application uses to connect. The secret ARN is what your application uses to retrieve credentials from Secrets Manager at runtime without ever handling the password directly.
 
 ## Proof of Deployment
 
@@ -105,19 +120,19 @@ RDS instance confirmed available in the AWS Console:
 
 ## Cleanup
 
-This infrastructure incurs charges while running. To destroy all resources cleanly and avoid unexpected costs, run:
+This infrastructure incurs charges while running. To destroy all resources and stop billing, run:
 
-`ash
+```bash
 terraform destroy
-`
+```
 
-Terraform will deprovision every resource it created in the correct dependency order. The RDS instance deletion takes approximately 3 to 5 minutes. Confirm by typing yes when prompted.
+Terraform deprovisions every resource in the correct dependency order. The RDS instance deletion takes approximately 3 to 5 minutes. Type yes when prompted to confirm.
 
-Note: if you ever enable deletion_protection on the RDS instance for a production deployment, you will need to set it to false first before terraform destroy will succeed.
+If you ever enable deletion_protection on the RDS instance for a real production deployment, set it back to false before running destroy or the command will fail.
 
 ## Configuration Reference
 
-The following variables can be overridden to customize the deployment:
+All variables are defined in variables.tf with defaults. Override them in terraform.tfvars using the template provided.
 
 | Variable | Default | Description |
 |---|---|---|
